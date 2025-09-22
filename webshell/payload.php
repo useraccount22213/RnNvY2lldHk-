@@ -24,7 +24,7 @@ $context = stream_context_create([
     ]
 ]);
 
-$fp = stream_socket_client("ssl://giant-newt-47.telebit.io:443", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, $context);
+$fp = stream_socket_client("ssl://giant-newt-47:443", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, $context);
 
 if (!$fp) {
     echo "Failed to connect to tunnel: $errstr ($errno)\n";
