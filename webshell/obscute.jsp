@@ -1,7 +1,7 @@
 <%@ page import="java.io.*,javax.net.ssl.*,java.util.concurrent.*" %>
 <%
 
-    String host = "";
+    String host = "URL HERE";
     int port = 443;
 
     SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
