@@ -8,7 +8,7 @@ if (ob_get_level()) ob_end_clean();
 ob_implicit_flush(false);
 
 // Get Telebit host from URL parameter
-$telebit_host = $_GET['url'] ?? 'giant-newt.mylocal.io';
+$telebit_host = $_GET['url'] ?? 'newt.mylocal';
 
 // Clean the host parameter
 $telebit_host = preg_replace('/^https?:\/\//', '', $telebit_host);
